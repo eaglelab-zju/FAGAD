@@ -1,0 +1,29 @@
+experiment_name: GADNR_fb
+tuner:
+    name: GridSearch
+trial_command: python -u -m dgld.models.pygod.train.gadnr.gadnr --dataset Facebook --gpu 0
+trial_code_directory: /graph/guming/projects/GAD/SAG/code/DGLD_ygm/src
+search_space_file: /graph/guming/projects/GAD/SAG/code/DGLD_ygm/src/dgld/models/pygod/train/gadnr/search_space.json
+    # hid_dim:
+    #     _type: choice
+    #     _value: [64, 128, 256]
+    # # 512 OOM
+    # lr:
+    #     _type: choice
+    #     _value: [0.01, 0.001, 0.0001]
+    # dropout:
+    #     _type: choice
+    #     _value: [0.2, 0.5, 0.8]
+    # num_layers:
+    #     _type: choice
+    #     _value: [1, 2, 3, 5]
+    # fea_dec_layers:
+    #     _type: choice
+    #     _value: [2, 3]
+
+max_trial_number: 216
+trial_concurrency: 2
+training_service:
+    platform: local
+    use_active_gpu: True
+experiment_working_directory: /graph/guming/projects/GAD/SAG/code/DGLD_ygm/src/.nni_experiments/gadnr/wiki

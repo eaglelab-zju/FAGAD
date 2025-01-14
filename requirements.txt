@@ -1,0 +1,30 @@
+# dgl==1.0.1
+# dgl_cu113==0.8.1
+# torch==1.11.0+cu113
+# joblib==1.1.0
+# matplotlib==3.5.1
+# networkx==2.7.1
+# nni==2.10
+# numpy==1.21.2
+# ogb==1.3.5
+# pandas==1.4.1
+# scikit_learn==1.2.2
+# scipy==1.8.0
+# sympy==1.11.1
+# termcolor==1.1.0
+# texttable==1.6.4
+# tqdm==4.63.0
+# wget==3.2
+
+# torch
+# torch-scatter
+# torch-sparse
+# torch_cluster
+# dgl
+the_utils
+graph_datasets
+torch_geometric==2.4
+lightning-bolts
+seaborn
+the_utils
+# nni==2.10
