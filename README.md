@@ -1,6 +1,6 @@
 # FAGAD
 
-An implementation of FAGAD, based on two open source benchmarking works [DGLD](https://github.com/eaglelab-zju/DGLD) and [pygod](https://github.com/pygod-team/pygod).
+An implementation of FAGAD with the code of 15 baseline models in [./src/dgld/models](./src/dgld/models).
 
 ## Installation
 
