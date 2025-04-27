@@ -19,13 +19,9 @@ from torch.nn import init
 
 class PolyConv(nn.Module):
 
-    def __init__(self,
-                 in_feats,
-                 out_feats,
-                 theta,
-                 activation=F.leaky_relu,
-                 lin=False,
-                 bias=False):
+    def __init__(
+        self, in_feats, out_feats, theta, activation=F.leaky_relu, lin=False, bias=False
+    ):
         super(PolyConv, self).__init__()
         self._theta = theta
         self._k = len(self._theta)
@@ -52,8 +48,11 @@ class PolyConv(nn.Module):
             return feat - graph.ndata.pop("h") * D_invsqrt
 
         with graph.local_scope():
-            D_invsqrt = (torch.pow(graph.in_degrees().float().clamp(min=1),
-                                   -0.5).unsqueeze(-1).to(feat.device))
+            D_invsqrt = (
+                torch.pow(graph.in_degrees().float().clamp(min=1), -0.5)
+                .unsqueeze(-1)
+                .to(feat.device)
+            )
             h = self._theta[0] * feat
             for k in range(1, self._k):
                 feat = unnLaplacian(feat, D_invsqrt, graph)
@@ -67,13 +66,9 @@ class PolyConv(nn.Module):
 
 class PolyConvBatch(nn.Module):
 
-    def __init__(self,
-                 in_feats,
-                 out_feats,
-                 theta,
-                 activation=F.leaky_relu,
-                 lin=False,
-                 bias=False):
+    def __init__(
+        self, in_feats, out_feats, theta, activation=F.leaky_relu, lin=False, bias=False
+    ):
         super(PolyConvBatch, self).__init__()
         self._theta = theta
         self._k = len(self._theta)
@@ -96,8 +91,11 @@ class PolyConvBatch(nn.Module):
             return feat - block.srcdata.pop("h") * D_invsqrt
 
         with block.local_scope():
-            D_invsqrt = (torch.pow(block.out_degrees().float().clamp(min=1),
-                                   -0.5).unsqueeze(-1).to(feat.device))
+            D_invsqrt = (
+                torch.pow(block.out_degrees().float().clamp(min=1), -0.5)
+                .unsqueeze(-1)
+                .to(feat.device)
+            )
             h = self._theta[0] * feat
             for k in range(1, self._k):
                 feat = unnLaplacian(feat, D_invsqrt, block)
@@ -125,8 +123,11 @@ def calculate_theta2(d):
     print("sympy:", random.random())
     x = sympy.symbols("x")
     for i in range(d + 1):
-        f = sympy.poly((x / 2)**i * (1 - x / 2)**(d - i) /
-                       (scipy.special.beta(i + 1, d + 1 - i)))
+        f = sympy.poly(
+            (x / 2) ** i
+            * (1 - x / 2) ** (d - i)
+            / (scipy.special.beta(i + 1, d + 1 - i))
+        )
         coeff = f.all_coeffs()
         inv_coeff = []
         for i in range(d + 1):
@@ -146,11 +147,11 @@ class BernNet(nn.Module):
         self.conv = []
         for i in range(len(self.thetas)):
             if not batch:
-                self.conv.append(
-                    PolyConv(h_feats, h_feats, self.thetas[i], lin=False))
+                self.conv.append(PolyConv(h_feats, h_feats, self.thetas[i], lin=False))
             else:
                 self.conv.append(
-                    PolyConvBatch(h_feats, h_feats, self.thetas[i], lin=False))
+                    PolyConvBatch(h_feats, h_feats, self.thetas[i], lin=False)
+                )
         self.linear = nn.Linear(in_feats, h_feats)
         self.linear2 = nn.Linear(h_feats, h_feats)
         # self.linear3 = nn.Linear(h_feats*len(self.conv), h_feats)
@@ -221,8 +222,7 @@ class BernNet_Hetero(nn.Module):
         self.thetas = calculate_theta2(d=d)
         self.h_feats = h_feats
         self.conv = [
-            PolyConv(h_feats, h_feats, theta, lin=False)
-            for theta in self.thetas
+            PolyConv(h_feats, h_feats, theta, lin=False) for theta in self.thetas
         ]
         self.linear = nn.Linear(in_feats, h_feats)
         self.linear2 = nn.Linear(h_feats, h_feats)

@@ -77,15 +77,19 @@ class SaConv(nn.Module):
             return 2 * feat - L_sym
 
         with graph.local_scope():
-            D_invsqrt = (torch.pow(graph.in_degrees().float().clamp(min=1),
-                                   -0.5).unsqueeze(-1).to(feat.device))
+            D_invsqrt = (
+                torch.pow(graph.in_degrees().float().clamp(min=1), -0.5)
+                .unsqueeze(-1)
+                .to(feat.device)
+            )
 
             a_feat = A_tile(feat, D_invsqrt, graph)
             L_stack = [a_feat]  # low,highs
 
             for _ in range(self._k):
-                feat = unnLaplacian(feat, D_invsqrt,
-                                    graph)  # L^1·x + L^2·x + ··· +L^n·x [n,d]
+                feat = unnLaplacian(
+                    feat, D_invsqrt, graph
+                )  # L^1·x + L^2·x + ··· +L^n·x [n,d]
                 feat = F.dropout(feat, p=self.dropout, training=self.training)
                 # h += self._theta[k]*feat
                 L_stack.append(feat)  # K,n,d
@@ -100,10 +104,10 @@ class SaConv(nn.Module):
         return h
 
 
-class SAGCN(nn.Module):
+class FAGCN(nn.Module):
 
     def __init__(self, in_feats, h_feats, d=2, batch=False, dropout=0.5):
-        super(SAGCN, self).__init__()
+        super(FAGCN, self).__init__()
 
         self.conv = SaConv(h_feats, h_feats, d, dropout=dropout)
         self.linear = nn.Linear(in_feats, h_feats)

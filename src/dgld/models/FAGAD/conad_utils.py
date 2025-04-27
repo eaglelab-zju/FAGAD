@@ -11,29 +11,20 @@ from torch import nn
 
 current_file_name = __file__
 current_dir = os.path.dirname(
-    os.path.dirname(os.path.dirname(os.path.abspath(current_file_name))))
+    os.path.dirname(os.path.dirname(os.path.abspath(current_file_name)))
+)
 if current_dir not in sys.path:
     sys.path.append(current_dir)
 
 
 def set_subargs(parser):
-    parser.add_argument("--num_epoch",
-                        type=int,
-                        default=100,
-                        help="Training epoch")
-    parser.add_argument("--lr",
-                        type=float,
-                        default=0.001,
-                        help="learning rate")
+    parser.add_argument("--num_epoch", type=int, default=100, help="Training epoch")
+    parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
     parser.add_argument("--weight_decay", type=float, default=0.0)
-    parser.add_argument("--alpha",
-                        type=float,
-                        default=0.9,
-                        help="balance parameter")
-    parser.add_argument("--eta",
-                        type=float,
-                        default=0.7,
-                        help="Attribute penalty balance parameter")
+    parser.add_argument("--alpha", type=float, default=0.9, help="balance parameter")
+    parser.add_argument(
+        "--eta", type=float, default=0.7, help="Attribute penalty balance parameter"
+    )
     parser.add_argument(
         "--contrast_type",
         type=str,
@@ -41,20 +32,16 @@ def set_subargs(parser):
         choices=["siamese", "triplet"],
         help="categories of contrastive loss function",
     )
-    parser.add_argument("--rate",
-                        type=float,
-                        default=0.2,
-                        help="rate of anomalies")
+    parser.add_argument("--rate", type=float, default=0.2, help="rate of anomalies")
     parser.add_argument(
         "--margin",
         type=float,
         default=0.5,
         help="parameter of the contrastive loss function",
     )
-    parser.add_argument("--batch_size",
-                        type=int,
-                        default=0,
-                        help="size of training batch")
+    parser.add_argument(
+        "--batch_size", type=int, default=0, help="size of training batch"
+    )
     parser.add_argument(
         "--num_added_edge",
         type=int,
@@ -73,10 +60,9 @@ def set_subargs(parser):
         default=10,
         help="parameter for generating disproportionate anomalies",
     )
-    parser.add_argument("--embedding_dim",
-                        type=int,
-                        default=64,
-                        help="dimension of embedding")
+    parser.add_argument(
+        "--embedding_dim", type=int, default=64, help="dimension of embedding"
+    )
     parser.add_argument(
         "--struct_dec_act",
         type=str,
@@ -135,8 +121,10 @@ def loss_func(a, a_hat, x, x_hat, alpha):
     structure_reconstruction_errors = torch.sqrt(torch.sum(diff_structure, 1))
     structure_cost = torch.mean(structure_reconstruction_errors)
 
-    cost = (alpha * attribute_reconstruction_errors +
-            (1 - alpha) * structure_reconstruction_errors)
+    cost = (
+        alpha * attribute_reconstruction_errors
+        + (1 - alpha) * structure_reconstruction_errors
+    )
     return cost, structure_cost, attribute_cost
 
 
@@ -175,8 +163,9 @@ def train_step(model, optimizer, g_orig, g_aug, alpha, eta):
     adj_orig = g_orig.adj().to_dense().to(label.device)
     h = model.online_network(g_orig, feat_orig)
     a_hat, x_hat = model.reconstruct(g_orig, h)
-    recon_loss, struct_loss, feat_loss = loss_func(adj_orig, a_hat, feat_orig,
-                                                   x_hat, alpha)
+    recon_loss, struct_loss, feat_loss = loss_func(
+        adj_orig, a_hat, feat_orig, x_hat, alpha
+    )
     # total loss
     loss = eta * contrast_loss + (1 - eta) * recon_loss.mean()
     # backward
@@ -213,14 +202,16 @@ def test_step(model, graph, alpha):
     # print(feat.device)
     adj_orig = graph.adj_external().to_dense().to(feat.device)
     feat_orig = feat.detach()
-    recon_loss, struct_loss, feat_loss = loss_func(adj_orig, a_hat, feat_orig,
-                                                   x_hat, alpha)
+    recon_loss, struct_loss, feat_loss = loss_func(
+        adj_orig, a_hat, feat_orig, x_hat, alpha
+    )
     score = recon_loss.cpu().detach().numpy()
     return score
 
 
-def train_step_batch(model: nn.Module, optimizer, g_orig, g_aug, alpha, eta,
-                     batch_size, device):
+def train_step_batch(
+    model: nn.Module, optimizer, g_orig, g_aug, alpha, eta, batch_size, device
+):
     model.train()
     node_list = g_orig.nodes()
     sampler = dgl.dataloading.MultiLayerFullNeighborSampler(num_layers=3)
@@ -243,15 +234,18 @@ def train_step_batch(model: nn.Module, optimizer, g_orig, g_aug, alpha, eta,
 
     epoch_loss = 0
     for (input_nodes_orig, output_nodes_orig, blocks_orig), (
-            input_nodes_aug,
-            output_nodes_aug,
-            blocks_aug,
+        input_nodes_aug,
+        output_nodes_aug,
+        blocks_aug,
     ) in zip(dataloader_orig, dataloader_aug):
         optimizer.zero_grad()
         label = blocks_aug[-1].dstdata["label"]
         output_nodes_num = blocks_orig[-1].number_of_dst_nodes()
-        adj_orig = (dgl.block_to_graph(blocks_orig[-1]).adj().to_dense()
-                    [:output_nodes_num, :output_nodes_num])
+        adj_orig = (
+            dgl.block_to_graph(blocks_orig[-1])
+            .adj()
+            .to_dense()[:output_nodes_num, :output_nodes_num]
+        )
 
         blocks_orig = [b.to(device) for b in blocks_orig]
         blocks_aug = [b.to(device) for b in blocks_aug]
@@ -266,9 +260,9 @@ def train_step_batch(model: nn.Module, optimizer, g_orig, g_aug, alpha, eta,
         h_aug = model.online_network(blocks_aug, input_feat_aug)
 
         # print(h_orig.shape, h_aug.shape, adj_orig.shape, label.shape)
-        contrast_loss = model.byol_forward(h_orig[:output_nodes_num],
-                                           h_aug[:output_nodes_num], label,
-                                           adj_orig)
+        contrast_loss = model.byol_forward(
+            h_orig[:output_nodes_num], h_aug[:output_nodes_num], label, adj_orig
+        )
         # recontruct loss
         a_hat, x_hat = model(blocks_orig, input_feat_orig)
         output_feat_orig = blocks_orig[-1].dstdata["feat"]
@@ -311,8 +305,7 @@ def test_step_batch(model, graph, alpha, batch_size, device):
         feat = blocks[0].srcdata["feat"]
         a_hat, x_hat = model(blocks, feat)
 
-        adj_orig = dgl.node_subgraph(graph,
-                                     output_nodes).adj().to_dense().to(device)
+        adj_orig = dgl.node_subgraph(graph, output_nodes).adj().to_dense().to(device)
         feat_orig = blocks[-1].dstdata["feat"]
         output_nodes_num = blocks[-1].number_of_dst_nodes()
         recon_loss, struct_loss, feat_loss = loss_func(
@@ -349,9 +342,11 @@ def ZerO_Init_on_matrix(matrix_tensor):
         init_matrix = torch.nn.init.eye_(torch.empty(m, n))
     elif m > n:
         clog_m = math.ceil(math.log2(m))
-        p = 2**(clog_m)
-        init_matrix = (torch.nn.init.eye_(torch.empty(m, p)) @ (
-            torch.tensor(hadamard(p)).float() /
-            (2**(clog_m / 2))) @ torch.nn.init.eye_(torch.empty(p, n)))
+        p = 2 ** (clog_m)
+        init_matrix = (
+            torch.nn.init.eye_(torch.empty(m, p))
+            @ (torch.tensor(hadamard(p)).float() / (2 ** (clog_m / 2)))
+            @ torch.nn.init.eye_(torch.empty(p, n))
+        )
 
     return init_matrix

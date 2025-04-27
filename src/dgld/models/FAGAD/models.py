@@ -14,7 +14,7 @@ from scipy.linalg import hadamard
 
 from .BernNet import BernNet
 from .conad_utils import *
-from .SAGCN import SAGCN
+from .FAGCN import FAGCN
 
 warnings.filterwarnings("ignore")
 
@@ -35,7 +35,7 @@ class CONAD(nn.Module):
         struct_dec_act=None,
         m=0.99,
         k=2,
-        encoder_name="SAGCN",
+        encoder_name="FAGCN",
         init="random",
         dropout=0.5,
     ):
@@ -73,9 +73,9 @@ class CONAD(nn.Module):
             device = torch.device("cpu")
             print("Using cpu!!!")
 
-        optimizer = torch.optim.Adam(self.model.parameters(),
-                                     lr=lr,
-                                     weight_decay=weight_decay)
+        optimizer = torch.optim.Adam(
+            self.model.parameters(), lr=lr, weight_decay=weight_decay
+        )
 
         graph = graph.remove_self_loop()
 
@@ -93,7 +93,8 @@ class CONAD(nn.Module):
                 g_aug = g_aug.to(device)
 
                 loss_epoch, contrast_loss, struct_loss, feat_loss = train_step(
-                    self.model, optimizer, g_orig, g_aug, alpha=alpha, eta=eta)
+                    self.model, optimizer, g_orig, g_aug, alpha=alpha, eta=eta
+                )
                 print(
                     f"Epoch:{epoch}",
                     f",loss={loss_epoch.item()}",
@@ -104,10 +105,10 @@ class CONAD(nn.Module):
         else:
             print("batch graph training!!!")
             for epoch in range(num_epoch):
-                loss = train_step_batch(self.model, optimizer, g_orig, g_aug,
-                                        alpha, eta, batch_size, device)
-                print("Epoch:", "%04d" % (epoch), "train/loss=",
-                      "{:.5f}".format(loss))
+                loss = train_step_batch(
+                    self.model, optimizer, g_orig, g_aug, alpha, eta, batch_size, device
+                )
+                print("Epoch:", "%04d" % (epoch), "train/loss=", "{:.5f}".format(loss))
 
                 early_stop(loss, self.model)
                 if early_stop.isEarlyStopping():
@@ -137,8 +138,9 @@ class CONAD(nn.Module):
         else:
             graph = graph.remove_self_loop().add_self_loop()
             self.model.to(device)
-            predict_score = test_step_batch(self.model, graph, alpha,
-                                            batch_size, device)
+            predict_score = test_step_batch(
+                self.model, graph, alpha, batch_size, device
+            )
 
         return predict_score
 
@@ -154,7 +156,7 @@ class CONAD_Base(nn.Module):
         struct_dec_act=None,
         m=0.99,
         k=2,
-        encoder_name="SAGCN",
+        encoder_name="FAGCN",
         init="random",
         dropout=0.5,
     ):
@@ -186,25 +188,20 @@ class CONAD_Base(nn.Module):
         )
         self.initializes_target_network()
         # predictor network
-        self.predictor = MLPHead(projection_size, mlp_hidden_size,
-                                 projection_size)
+        self.predictor = MLPHead(projection_size, mlp_hidden_size, projection_size)
 
-        if encoder_name == "SAGCN":
-            self.attr_decoder = SAGCN(projection_size, in_feats, k)
+        if encoder_name == "FAGCN":
+            self.attr_decoder = FAGCN(projection_size, in_feats, k)
         elif encoder_name == "ChebNet":
-            self.attr_decoder = ChebConv(projection_size,
-                                         in_feats,
-                                         k + 1,
-                                         activation=act)
+            self.attr_decoder = ChebConv(
+                projection_size, in_feats, k + 1, activation=act
+            )
         elif encoder_name == "GCN":
-            self.attr_decoder = GraphConv(projection_size,
-                                          in_feats,
-                                          activation=act)
+            self.attr_decoder = GraphConv(projection_size, in_feats, activation=act)
         elif encoder_name == "GAT":
-            self.attr_decoder = GATConv(projection_size,
-                                        in_feats,
-                                        num_heads=2,
-                                        activation=act)
+            self.attr_decoder = GATConv(
+                projection_size, in_feats, num_heads=2, activation=act
+            )
         elif encoder_name == "BernNet":
             self.attr_decoder = BernNet(projection_size, in_feats, d=k + 1)
 
@@ -223,15 +220,16 @@ class CONAD_Base(nn.Module):
         """
         Momentum update of the key encoder
         """
-        for param_q, param_k in zip(self.online_network.parameters(),
-                                    self.target_network.parameters()):
-            param_k.data = param_k.data * self.m + param_q.data * (1.0 -
-                                                                   self.m)
+        for param_q, param_k in zip(
+            self.online_network.parameters(), self.target_network.parameters()
+        ):
+            param_k.data = param_k.data * self.m + param_q.data * (1.0 - self.m)
 
     def initializes_target_network(self):
         # init momentum network as encoder net
-        for param_q, param_k in zip(self.online_network.parameters(),
-                                    self.target_network.parameters()):
+        for param_q, param_k in zip(
+            self.online_network.parameters(), self.target_network.parameters()
+        ):
             param_k.data.copy_(param_q.data)  # initialize
             param_k.requires_grad = False  # not update by gradient
 
@@ -303,27 +301,24 @@ class Encoder(nn.Module):
         mlp_hidden_size=64,
         projection_size=64,
         k=2,
-        encoder_name="SAGCN",
+        encoder_name="FAGCN",
         activation=None,
         dropout=0.5,
     ):
         super().__init__()
         self.encoder_name = encoder_name
-        if encoder_name == "SAGCN":
-            self.encoder = SAGCN(in_feats, hid_feats, k, dropout=dropout)
+        if encoder_name == "FAGCN":
+            self.encoder = FAGCN(in_feats, hid_feats, k, dropout=dropout)
         elif encoder_name == "GAT":
-            self.encoder = GATConv(in_feats,
-                                   hid_feats,
-                                   num_heads=2,
-                                   activation=activation)
+            self.encoder = GATConv(
+                in_feats, hid_feats, num_heads=2, activation=activation
+            )
         elif encoder_name == "ChebNet":
             self.encoder = ChebConv(
-                in_feats, hid_feats, k + 1,
-                activation=activation)  # +1 because low pass
+                in_feats, hid_feats, k + 1, activation=activation
+            )  # +1 because low pass
         elif encoder_name == "GCN":
-            self.encoder = GraphConv(in_feats,
-                                     hid_feats,
-                                     activation=activation)
+            self.encoder = GraphConv(in_feats, hid_feats, activation=activation)
         elif encoder_name == "BernNet":
             self.encoder = BernNet(in_feats, hid_feats, k + 1)
 
@@ -393,7 +388,8 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(
-        prog="All", description="Parameters for Baseline Method")
+        prog="All", description="Parameters for Baseline Method"
+    )
     # experiment parameter
     parser.add_argument("--gpu", type=str, default="6", help="GPU id")
     parser.add_argument(
@@ -402,36 +398,19 @@ if __name__ == "__main__":
         default=3,
         help="The number of runs of task with same parmeter",
     )
-    parser.add_argument("--dataset",
-                        type=str,
-                        default="cora",
-                        help="Dataset used in the experiment")
-    parser.add_argument("--model_init",
-                        type=str,
-                        default="zero",
-                        help="model_init")
+    parser.add_argument(
+        "--dataset", type=str, default="cora", help="Dataset used in the experiment"
+    )
+    parser.add_argument("--model_init", type=str, default="zero", help="model_init")
     parser.add_argument("--hid_feats", type=int, default=512, help="hid_feats")
-    parser.add_argument("--mlp_hidden_dic",
-                        type=int,
-                        default=1024,
-                        help="hid_feats")
-    parser.add_argument("--projection_dic",
-                        type=int,
-                        default=1024,
-                        help="hid_feats")
-    parser.add_argument("--struct_dec_act",
-                        type=str,
-                        default="relu",
-                        help="struct_dec_act")
+    parser.add_argument("--mlp_hidden_dic", type=int, default=1024, help="hid_feats")
+    parser.add_argument("--projection_dic", type=int, default=1024, help="hid_feats")
+    parser.add_argument(
+        "--struct_dec_act", type=str, default="relu", help="struct_dec_act"
+    )
     parser.add_argument("--k_dic", type=int, default=1, help="k_dic")
-    parser.add_argument("--lr",
-                        type=float,
-                        default=0.001,
-                        help="learning rate")
-    parser.add_argument("--weight_decay",
-                        type=float,
-                        default=0.0,
-                        help="learning rate")
+    parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
+    parser.add_argument("--weight_decay", type=float, default=0.0, help="learning rate")
     parser.add_argument("--alpha", type=float, default=0.2, help="alpha")
     parser.add_argument("--eta", type=float, default=0.1, help="eta")
     parser.add_argument("--dropout_dic", type=float, default=0.0, help="eta")
@@ -462,7 +441,7 @@ if __name__ == "__main__":
 
     # Encoder_name_list = ['ChebNet','GAT','GCN','BernNet']
     # Encoder_name_list = ['ChebNet']
-    Encoder_name_list = ["SAGCN"]
+    Encoder_name_list = ["FAGCN"]
     # model_init = 'identity'#zero,identity,random
     # Data_name_list=['Flickr','BlogCatalog','wiki','reddit','Amazon','Enron']# BlogCatalog/Flickr
     # Data_name_list=['Enron','Flickr','wiki','reddit','BlogCatalog','Amazon']
@@ -617,11 +596,11 @@ if __name__ == "__main__":
                 if data_name in truth_list:
                     # graph = load_truth_data(data_path=data_path,dataset_name=data_name)
                     if data_name in ["Facebook", "YelpChi"]:
-                        graph = load_local(data_name=data_name,
-                                           raw_dir=data_path)
+                        graph = load_local(data_name=data_name, raw_dir=data_path)
                     else:
-                        graph = load_truth_data(data_path=data_path,
-                                                dataset_name=data_name)
+                        graph = load_truth_data(
+                            data_path=data_path, dataset_name=data_name
+                        )
                 elif data_name == "custom":
                     graph = load_custom_data(data_path=data_path)
                 else:
@@ -635,20 +614,17 @@ if __name__ == "__main__":
                         graph = torch.load(c_p)
                     else:
                         make_parent_dirs(c_p)
-                        graph = inject_contextual_anomalies(graph=graph,
-                                                            k=K,
-                                                            p=P,
-                                                            q=Q_MAP[data_name],
-                                                            seed=4096)
+                        graph = inject_contextual_anomalies(
+                            graph=graph, k=K, p=P, q=Q_MAP[data_name], seed=4096
+                        )
                         torch.save(graph, c_p, pickle_protocol=4)
                     if s_p.exists():
                         graph = torch.load(s_p)
                     else:
                         make_parent_dirs(s_p)
-                        graph = inject_structural_anomalies(graph=graph,
-                                                            p=P,
-                                                            q=Q_MAP[data_name],
-                                                            seed=4096)
+                        graph = inject_structural_anomalies(
+                            graph=graph, p=P, q=Q_MAP[data_name], seed=4096
+                        )
 
                         torch.save(graph, s_p, pickle_protocol=4)
                 # pca = PCA(n_components=10)
