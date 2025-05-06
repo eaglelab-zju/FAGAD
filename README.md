@@ -20,6 +20,8 @@ See [sota.sh](./src/scripts/sota.sh) for running scripts and [baselines](./src/s
 source .env/bin/activate
 cd src
 
+# eta is the beta in paper
+
 python -u -m dgld.models.FAGAD.models --dataset YelpChi --gpu 7 --model_init zero --lr 0.001 --hid_feats 64 --mlp_hidden_dic 64 --projection_dic 64 --struct_dec_act relu --k_dic 2 --alpha 0.2 --eta 0.5 --num_epoch 30 --dropout_dic 0.1 --runs 3 --weight_decay 0
 
 python -u -m dgld.models.FAGAD.models --dataset Facebook --gpu 7 --model_init zero --lr 0.001 --hid_feats 2048  --mlp_hidden_dic 2048 --projection_dic 2048 --struct_dec_act relu --k_dic 8 --alpha 0.1 --eta 0.9 --num_epoch 100 --dropout_dic 0 --runs 3 --weight_decay 0.00001

@@ -1,7 +1,7 @@
 import argparse
 
 import numpy as np
-from dgld.models.pygod.detector import OCGNN
+from dgld.models.pygod.detector.ocgnn import OCGNN
 from sklearn.metrics import average_precision_score
 from sklearn.metrics import precision_recall_curve
 from sklearn.metrics import roc_auc_score
@@ -164,21 +164,17 @@ if __name__ == "__main__":
         if data_name in ["Facebook", "YelpChi"]:
             graph = load_local(data_name=data_name, raw_dir=data_path)
         else:
-            graph = load_truth_data(data_path=data_path,
-                                    dataset_name=data_name)
+            graph = load_truth_data(data_path=data_path, dataset_name=data_name)
     elif data_name == "custom":
         graph = load_custom_data(data_path=data_path)
     else:
         graph = load_data(data_name)
-        graph = inject_contextual_anomalies(graph=graph,
-                                            k=K,
-                                            p=P,
-                                            q=Q_MAP[data_name],
-                                            seed=4096)
-        graph = inject_structural_anomalies(graph=graph,
-                                            p=P,
-                                            q=Q_MAP[data_name],
-                                            seed=4096)
+        graph = inject_contextual_anomalies(
+            graph=graph, k=K, p=P, q=Q_MAP[data_name], seed=4096
+        )
+        graph = inject_structural_anomalies(
+            graph=graph, p=P, q=Q_MAP[data_name], seed=4096
+        )
         if data_name not in ["BlogCatalog", "Flickr"]:
             from sklearn.preprocessing import LabelEncoder, MinMaxScaler
 
@@ -203,6 +199,7 @@ if __name__ == "__main__":
 
     seed_list = [random.randint(0, 9999999) for i in range(runs)]
     aucs = []
+    et = []
     for run in range(runs):
         set_seed(seed_list[run])
         model = OCGNN(
@@ -218,7 +215,8 @@ if __name__ == "__main__":
         )
         print(model.__class__.__name__)
 
-        model.fit(data=data, label=data.y.cpu(), NNI=NNI)
+        t = model.fit(data=data, label=data.y.cpu(), NNI=NNI)
+        et.append(t)
         # get outlier scores on the training data (transductive setting)
         score = model.decision_score_
 
@@ -229,16 +227,26 @@ if __name__ == "__main__":
 
         auc, a_score, s_score = split_auc(data.y.cpu(), score)
         aucs.append(auc)
+
+    elapsed_time = np.array(et)
+    save_to_csv_files(
+        {
+            "time": f"{elapsed_time.mean():.2f}±{elapsed_time.std():.2f}",
+        },
+        "time.csv",
+        insert_info={
+            "model": "OCGNN",
+            "dataet": data_name,
+        },
+    )
     if NNI:
         nni.report_final_result(np.array(aucs).mean())
-    from the_utils import save_to_csv_files
 
     save_path = "baselines.csv"
     print(f"write result to {save_path}")
     save_to_csv_files(
         results={
-            "AUC":
-            f"{np.array(aucs).mean()*100:.2f}±{np.array(aucs).std()*100:.2f}",
+            "AUC": f"{np.array(aucs).mean()*100:.2f}±{np.array(aucs).std()*100:.2f}",
         },
         insert_info={
             "dataset": args.dataset,

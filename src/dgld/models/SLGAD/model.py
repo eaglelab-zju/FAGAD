@@ -97,11 +97,9 @@ class OneLayerGCNWithGlobalAdg_simple(nn.Module):
         self.norm = "none" if global_adg else "both"
         self.weight = nn.Parameter(torch.Tensor(in_feats, out_feats))
         self.bias = nn.Parameter(torch.Tensor(out_feats))
-        self.conv = GraphConv(in_feats,
-                              out_feats,
-                              weight=False,
-                              bias=False,
-                              norm=self.norm)
+        self.conv = GraphConv(
+            in_feats, out_feats, weight=False, bias=False, norm=self.norm
+        )
         self.conv.set_allow_zero_in_degree(1)
         self.act = nn.PReLU()
         self.reset_parameters()
@@ -161,8 +159,9 @@ class OneLayerGCNWithGlobalAdg_simple(nn.Module):
         with bg.local_scope():
             # pooling
             subgraph_pool_emb = self.pool(bg, h)
-        return F.normalize(subgraph_pool_emb, p=2,
-                           dim=1), F.normalize(anchor_out, p=2, dim=1)
+        return F.normalize(subgraph_pool_emb, p=2, dim=1), F.normalize(
+            anchor_out, p=2, dim=1
+        )
 
 
 class OneLayerGCNWithGlobalAdg(nn.Module):
@@ -190,11 +189,9 @@ class OneLayerGCNWithGlobalAdg(nn.Module):
         self.bias.data.fill_(0.0)
         for m in self.modules():
             self.weights_init(m)
-        self.conv = GraphConv(in_feats,
-                              out_feats,
-                              weight=False,
-                              bias=False,
-                              norm=self.norm)
+        self.conv = GraphConv(
+            in_feats, out_feats, weight=False, bias=False, norm=self.norm
+        )
         self.conv.set_allow_zero_in_degree(1)
         if args is None or args.act_function == "PReLU":
             self.act = nn.PReLU()
@@ -351,8 +348,9 @@ class OneLayerGCN(nn.Module):
             for g in unbatchg:
                 subgraph_pool_emb.append(torch.mean(g.ndata["h"], dim=0))
                 single_anchor_out = (
-                    torch.matmul(g.ndata["in_feat"][0], self.conv.weight) +
-                    self.conv.bias)
+                    torch.matmul(g.ndata["in_feat"][0], self.conv.weight)
+                    + self.conv.bias
+                )
                 single_anchor_out = self.act(single_anchor_out)
                 anchor_out.append(single_anchor_out)
             anchor_out = torch.stack(anchor_out, dim=0)
@@ -386,14 +384,12 @@ class SL_GAD_Model(nn.Module):
 
     def __init__(self, in_feats=300, out_feats=64, global_adg=True, args=None):
         super(SL_GAD_Model, self).__init__()
-        self.enc = OneLayerGCNWithGlobalAdg(in_feats, out_feats, global_adg,
-                                            args)
-        self.dec = OneLayerGCNWithGlobalAdg(out_feats, in_feats, global_adg,
-                                            args)
+        self.enc = OneLayerGCNWithGlobalAdg(in_feats, out_feats, global_adg, args)
+        self.dec = OneLayerGCNWithGlobalAdg(out_feats, in_feats, global_adg, args)
         self.enc_simple = OneLayerGCNWithGlobalAdg_simple(
-            in_feats, out_feats, global_adg)
-        self.attention = torch.nn.MultiheadAttention(embed_dim=out_feats,
-                                                     num_heads=1)
+            in_feats, out_feats, global_adg
+        )
+        self.attention = torch.nn.MultiheadAttention(embed_dim=out_feats, num_heads=1)
         self.discriminator_1 = Discriminator(out_feats)
         self.discriminator_2 = Discriminator(out_feats)
         self.args = args
@@ -407,9 +403,9 @@ class SL_GAD_Model(nn.Module):
             self.device = "cpu"
         else:
             self.device = "cuda:" + str(args.device)
-        self.b_xent = nn.BCEWithLogitsLoss(reduction="none",
-                                           pos_weight=torch.tensor([1]).to(
-                                               self.device))
+        self.b_xent = nn.BCEWithLogitsLoss(
+            reduction="none", pos_weight=torch.tensor([1]).to(self.device)
+        )
         print("alpha : ", self.alpha)
         print("beta : ", self.beta)
 
@@ -457,19 +453,25 @@ class SL_GAD_Model(nn.Module):
         raw_pos_in_feat_2[::4, :] = 0.0
 
         feat_1, pos_pool_emb_1, anchor_out_1 = self.enc(
-            pos_batchg_1, pos_in_feat_1, anchor_out_1)
+            pos_batchg_1, pos_in_feat_1, anchor_out_1
+        )
         feat_2, pos_pool_emb_2, anchor_out_2 = self.enc(
-            pos_batchg_2, pos_in_feat_2, anchor_out_2)
+            pos_batchg_2, pos_in_feat_2, anchor_out_2
+        )
 
         raw_feat_1, raw_pos_pool_emb_1, raw_anchor_out_1 = self.enc(
-            pos_batchg_1, raw_pos_in_feat_1, raw_anchor_out_1)
+            pos_batchg_1, raw_pos_in_feat_1, raw_anchor_out_1
+        )
 
         raw_feat_2, raw_pos_pool_emb_2, raw_anchor_out_2 = self.enc(
-            pos_batchg_2, raw_pos_in_feat_2, raw_anchor_out_2)
+            pos_batchg_2, raw_pos_in_feat_2, raw_anchor_out_2
+        )
         raw_feat_3, raw_pos_pool_emb_3, raw_anchor_out_3 = self.dec(
-            pos_batchg_1, raw_feat_1, raw_anchor_out_1)
+            pos_batchg_1, raw_feat_1, raw_anchor_out_1
+        )
         raw_feat_4, raw_pos_pool_emb_4, raw_anchor_out_4 = self.dec(
-            pos_batchg_2, raw_feat_2, raw_anchor_out_2)
+            pos_batchg_2, raw_feat_2, raw_anchor_out_2
+        )
 
         pos_scores_1 = self.discriminator_1(pos_pool_emb_1, anchor_out_2)
         pos_scores_2 = self.discriminator_2(pos_pool_emb_2, anchor_out_1)
@@ -500,8 +502,9 @@ class SL_GAD_Model(nn.Module):
         )
         score_tot = torch.mean(score_tot, dim=1, keepdim=True)
         lbl = torch.unsqueeze(
-            torch.cat((torch.ones(anchor_embs.shape[0]),
-                       torch.zeros(anchor_embs.shape[0]))),
+            torch.cat(
+                (torch.ones(anchor_embs.shape[0]), torch.zeros(anchor_embs.shape[0]))
+            ),
             dim=1,
         ).to(self.device)
 
@@ -510,23 +513,30 @@ class SL_GAD_Model(nn.Module):
         neg_scores_1 = torch.sigmoid(neg_scores_1)
         neg_scores_2 = torch.sigmoid(neg_scores_2)
 
-        contrastive_loss_1 = (-torch.mean(
-            torch.log(pos_scores_1 + 1e-8) +
-            torch.log(1 - neg_scores_1 + 1e-8)) / 2)
-        contrastive_loss_2 = (-torch.mean(
-            torch.log(pos_scores_2 + 1e-8) +
-            torch.log(1 - neg_scores_2 + 1e-8)) / 2)
+        contrastive_loss_1 = (
+            -torch.mean(
+                torch.log(pos_scores_1 + 1e-8) + torch.log(1 - neg_scores_1 + 1e-8)
+            )
+            / 2
+        )
+        contrastive_loss_2 = (
+            -torch.mean(
+                torch.log(pos_scores_2 + 1e-8) + torch.log(1 - neg_scores_2 + 1e-8)
+            )
+            / 2
+        )
         contrastive_loss = (contrastive_loss_1 + contrastive_loss_2) / 2
 
         lbl = torch.unsqueeze(
-            torch.cat((torch.ones(anchor_embs.shape[0]),
-                       torch.zeros(anchor_embs.shape[0]))),
+            torch.cat(
+                (torch.ones(anchor_embs.shape[0]), torch.zeros(anchor_embs.shape[0]))
+            ),
             dim=1,
         ).to(self.device)
 
-        b_xent = nn.BCEWithLogitsLoss(reduction="none",
-                                      pos_weight=torch.tensor([1]).to(
-                                          self.device))
+        b_xent = nn.BCEWithLogitsLoss(
+            reduction="none", pos_weight=torch.tensor([1]).to(self.device)
+        )
         loss_all = b_xent(score_tot.to(self.device), lbl.to(self.device))
         loss_all = torch.mean(loss_all)
         contrastive_loss = loss_all
@@ -543,21 +553,27 @@ class SL_GAD_Model(nn.Module):
         contrastive_score = neg_scores_3 - pos_scores_3
 
         generative_score_1 = torch.sqrt(
-            torch.sum(torch.square(generative_diff_1), dim=1))
+            torch.sum(torch.square(generative_diff_1), dim=1)
+        )
         generative_score_2 = torch.sqrt(
-            torch.sum(torch.square(generative_diff_2), dim=1))
+            torch.sum(torch.square(generative_diff_2), dim=1)
+        )
         generative_score = (generative_score_1 + generative_score_2) / 2
 
         scaler1 = MinMaxScaler()
         scaler2 = MinMaxScaler()
         contrastive_score = scaler1.fit_transform(
-            contrastive_score.cpu().detach().numpy().reshape(-1, 1))
+            contrastive_score.cpu().detach().numpy().reshape(-1, 1)
+        )
         generative_score = scaler2.fit_transform(
-            generative_score.cpu().detach().numpy().reshape(-1, 1))
+            generative_score.cpu().detach().numpy().reshape(-1, 1)
+        )
         contrastive_score = torch.from_numpy(contrastive_score).reshape(
-            anchor_embs.shape[0], 1)
+            anchor_embs.shape[0], 1
+        )
         generative_score = torch.from_numpy(generative_score).reshape(
-            anchor_embs.shape[0], 1)
+            anchor_embs.shape[0], 1
+        )
 
         total_score = self.alpha * contrastive_score + self.beta * generative_score
 
@@ -700,12 +716,15 @@ class SLGAD:
             device = torch.device("cpu")
         self.model.to(device)
 
-        optimizer = optim.Adam(self.model.parameters(),
-                               lr=lr,
-                               weight_decay=weight_decay)
+        optimizer = optim.Adam(
+            self.model.parameters(), lr=lr, weight_decay=weight_decay
+        )
 
         early_stop = EarlyStopping(patience=100, check_finite=True)
 
+        import time
+
+        time_st = time.time()
         for epoch in range(num_epoch):
             train_loader.dataset.random_walk_sampling()
             loss_accum = train_epoch(
@@ -722,14 +741,11 @@ class SLGAD:
             if early_stop.isEarlyStopping():
                 print(f"Early stopping in round {epoch}")
                 break
-        return self
+        return (time.time() - time_st) / (epoch + 1) * 10
 
-    def predict(self,
-                g,
-                device="cpu",
-                batch_size=300,
-                num_workers=4,
-                auc_test_rounds=256):
+    def predict(
+        self, g, device="cpu", batch_size=300, num_workers=4, auc_test_rounds=256
+    ):
         """
         Test the model
 

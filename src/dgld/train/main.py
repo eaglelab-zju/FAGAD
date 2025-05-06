@@ -69,21 +69,17 @@ if __name__ == "__main__":
         if data_name in ["Facebook", "YelpChi"]:
             graph = load_local(data_name=data_name, raw_dir=data_path)
         else:
-            graph = load_truth_data(data_path=data_path,
-                                    dataset_name=data_name)
+            graph = load_truth_data(data_path=data_path, dataset_name=data_name)
     elif data_name == "custom":
         graph = load_custom_data(data_path=data_path)
     else:
         graph = load_data(data_name)
-        graph = inject_contextual_anomalies(graph=graph,
-                                            k=K,
-                                            p=P,
-                                            q=Q_MAP[data_name],
-                                            seed=4096)
-        graph = inject_structural_anomalies(graph=graph,
-                                            p=P,
-                                            q=Q_MAP[data_name],
-                                            seed=4096)
+        graph = inject_contextual_anomalies(
+            graph=graph, k=K, p=P, q=Q_MAP[data_name], seed=4096
+        )
+        graph = inject_structural_anomalies(
+            graph=graph, p=P, q=Q_MAP[data_name], seed=4096
+        )
         if data_name not in ["BlogCatalog", "Flickr"]:
             from sklearn.preprocessing import LabelEncoder, MinMaxScaler
 
@@ -117,6 +113,7 @@ if __name__ == "__main__":
     if "args" in args_dict["model"]:
         args_dict["model"]["args"] = args
     tab_printer(args_dict)
+    et = []
     for runs in range(args.runs):
         # log.update_runs()
         seed = seed_list[runs]
@@ -136,34 +133,50 @@ if __name__ == "__main__":
         # label = graph.ndata['label']
 
         if args.model in [
-                "DOMINANT",
-                "AnomalyDAE",
-                "ComGA",
-                "DONE",
-                "AdONE",
-                "CONAD",
-                "ALARM",
-                "ONE",
-                "GAAN",
-                "GUIDE",
-                "CoLA",
-                "AAGNN",
-                "SLGAD",
-                "ANEMONE",
-                "GCNAE",
-                "MLPAE",
-                "SCAN",
+            "DOMINANT",
+            "AnomalyDAE",
+            "ComGA",
+            "DONE",
+            "AdONE",
+            "CONAD",
+            "ALARM",
+            "ONE",
+            "GAAN",
+            "GUIDE",
+            "CoLA",
+            "AAGNN",
+            "SLGAD",
+            "ANEMONE",
+            "GCNAE",
+            "MLPAE",
+            "SCAN",
         ]:
             model = eval(f'{args.model}(**args_dict["model"])')
         else:
             raise ValueError(f"{args.model} is not implemented!")
 
-        model.fit(graph, **args_dict["fit"])
+        t = model.fit(graph, **args_dict["fit"])
         result = model.predict(graph, **args_dict["predict"])
         auc, a_score, s_score = split_auc(label, result)
         res_list_final.append(auc)
         res_list_attrb.append(a_score)
         res_list_struct.append(s_score)
+        et.append(t)
+
+    import numpy as np
+    from the_utils import save_to_csv_files
+
+    elapsed_time = np.array(et)
+    save_to_csv_files(
+        {
+            "time": f"{elapsed_time.mean():.2f}±{elapsed_time.std():.2f}",
+        },
+        "time.csv",
+        insert_info={
+            "model": args.model,
+            "dataet": data_name,
+        },
+    )
 
     from the_utils import save_to_csv_files
 
@@ -171,8 +184,7 @@ if __name__ == "__main__":
     print(f"write result to {save_path}")
     save_to_csv_files(
         results={
-            "AUC":
-            f"{np.array(res_list_final).mean()*100:.2f}±{np.array(res_list_final).std()*100:.2f}",
+            "AUC": f"{np.array(res_list_final).mean()*100:.2f}±{np.array(res_list_final).std()*100:.2f}",
         },
         insert_info={
             "dataset": args.dataset,

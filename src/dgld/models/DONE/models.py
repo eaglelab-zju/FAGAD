@@ -14,13 +14,13 @@ from .done_utils import train_step
 class DONE:
 
     def __init__(
-            self,
-            feat_size: int,
-            num_nodes: int,
-            embedding_dim=32,
-            num_layers=2,
-            activation=nn.LeakyReLU(negative_slope=0.2),
-            dropout=0.0,
+        self,
+        feat_size: int,
+        num_nodes: int,
+        embedding_dim=32,
+        num_layers=2,
+        activation=nn.LeakyReLU(negative_slope=0.2),
+        dropout=0.0,
     ):
         """
         Outlier Resistant Unsupervised Deep Architectures for Attributed Network Embedding
@@ -40,8 +40,9 @@ class DONE:
         dropout : float, optional
             rate of dropout, by default 0.
         """
-        self.model = DONE_Base(feat_size, num_nodes, embedding_dim, num_layers,
-                               activation, dropout)
+        self.model = DONE_Base(
+            feat_size, num_nodes, embedding_dim, num_layers, activation, dropout
+        )
 
     def fit(
         self,
@@ -96,9 +97,9 @@ class DONE:
         if batch_size == 0:
             batch_size = graph.number_of_nodes()
 
-        optimizer = torch.optim.Adam(self.model.parameters(),
-                                     lr=lr,
-                                     weight_decay=weight_decay)
+        optimizer = torch.optim.Adam(
+            self.model.parameters(), lr=lr, weight_decay=weight_decay
+        )
 
         # preprocessing
         # graph = graph.remove_self_loop().add_self_loop()
@@ -110,6 +111,9 @@ class DONE:
         early_stop = EarlyStopping(early_stopping_rounds=10, patience=100)
 
         # pretrain w/o the outlier scores
+        import time
+
+        time_st = time.time()
         for epoch in range(num_epoch):
             score, loss = train_step(
                 self.model,
@@ -142,6 +146,7 @@ class DONE:
             if early_stop.isEarlyStopping():
                 print(f"Early stopping in round {epoch}")
                 break
+        return (time.time() - time_st) / (epoch + 1) * 10
 
     def predict(
         self,
@@ -189,8 +194,7 @@ class DONE:
             adj = random_walk_with_restart(graph, k=max_len, r=1 - restart)
         else:
             adj = graph.adj_external().to_dense()
-        predict_score = test_step(self.model, graph, adj, batch_size, alphas,
-                                  device)
+        predict_score = test_step(self.model, graph, adj, batch_size, alphas, device)
         return predict_score
 
 
@@ -214,17 +218,22 @@ class DONE_Base(nn.Module):
         probability of restart
     """
 
-    def __init__(self, feat_size, num_nodes, hid_feats, num_layers, activation,
-                 dropout):
+    def __init__(
+        self, feat_size, num_nodes, hid_feats, num_layers, activation, dropout
+    ):
         super(DONE_Base, self).__init__()
-        self.attr_encoder = self._add_mlp(feat_size, hid_feats, hid_feats,
-                                          num_layers, activation, dropout)
-        self.attr_decoder = self._add_mlp(hid_feats, hid_feats, feat_size,
-                                          num_layers, activation, dropout)
-        self.struct_encoder = self._add_mlp(num_nodes, hid_feats, hid_feats,
-                                            num_layers, activation, dropout)
-        self.struct_decoder = self._add_mlp(hid_feats, hid_feats, num_nodes,
-                                            num_layers, activation, dropout)
+        self.attr_encoder = self._add_mlp(
+            feat_size, hid_feats, hid_feats, num_layers, activation, dropout
+        )
+        self.attr_decoder = self._add_mlp(
+            hid_feats, hid_feats, feat_size, num_layers, activation, dropout
+        )
+        self.struct_encoder = self._add_mlp(
+            num_nodes, hid_feats, hid_feats, num_layers, activation, dropout
+        )
+        self.struct_decoder = self._add_mlp(
+            hid_feats, hid_feats, num_nodes, num_layers, activation, dropout
+        )
 
     def forward(self, g, x, c):
         """
@@ -244,18 +253,15 @@ class DONE_Base(nn.Module):
             h_s = self.struct_encoder(x)
             x_hat = self.struct_decoder(h_s)
             g.ndata["h"] = h_s
-            g.update_all(self._homophily_loss_message_func,
-                         fn.mean("hh", "h_str"))
+            g.update_all(self._homophily_loss_message_func, fn.mean("hh", "h_str"))
             # attribute
             h_a = self.attr_encoder(c)
             c_hat = self.attr_decoder(h_a)
             g.ndata["h"] = h_a
-            g.update_all(self._homophily_loss_message_func,
-                         fn.mean("hh", "h_attr"))
+            g.update_all(self._homophily_loss_message_func, fn.mean("hh", "h_attr"))
             return h_s, x_hat, h_a, c_hat, g.ndata["h_str"], g.ndata["h_attr"]
 
-    def _add_mlp(self, in_feats, hid_feats, out_feats, num_layers, activation,
-                 dropout):
+    def _add_mlp(self, in_feats, hid_feats, out_feats, num_layers, activation, dropout):
         assert num_layers >= 2
         mlp = nn.Sequential()
         # input layer

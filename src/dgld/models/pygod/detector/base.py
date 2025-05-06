@@ -56,8 +56,9 @@ class Detector(ABC):
     def __init__(self, contamination=0.1, verbose=0):
 
         if not (0.0 < contamination <= 0.5):
-            raise ValueError("contamination must be in (0, 0.5], "
-                             "got: %f" % contamination)
+            raise ValueError(
+                "contamination must be in (0, 0.5], " "got: %f" % contamination
+            )
 
         self.contamination = contamination
         self.verbose = verbose
@@ -192,15 +193,15 @@ class Detector(ABC):
             score = self.decision_function(data, label)
         if return_pred:
             pred = (score > self.threshold_).long()
-            output += (pred, )
+            output += (pred,)
         if return_score:
-            output += (score, )
+            output += (score,)
         if return_prob:
             prob = self._predict_prob(score, prob_method)
-            output += (prob, )
+            output += (prob,)
         if return_conf:
             conf = self._predict_conf(score)
-            output += (conf, )
+            output += (conf,)
 
         if len(output) == 1:
             return output[0]
@@ -245,8 +246,7 @@ class Detector(ABC):
             erf_score = erf(pre_erf_score)
             prob = erf_score.clamp(0, 1)
         else:
-            raise ValueError(method,
-                             "is not a valid probability conversion method")
+            raise ValueError(method, "is not a valid probability conversion method")
         return prob
 
     def _predict_conf(self, score):
@@ -286,8 +286,9 @@ class Detector(ABC):
         - label_: binary labels of training data
         """
 
-        self.threshold_ = np.percentile(self.decision_score_,
-                                        100 * (1 - self.contamination))
+        self.threshold_ = np.percentile(
+            self.decision_score_, 100 * (1 - self.contamination)
+        )
         self.label_ = (self.decision_score_ > self.threshold_).long()
 
     def __repr__(self):
@@ -295,7 +296,8 @@ class Detector(ABC):
         class_name = self.__class__.__name__
         init_signature = signature(self.__init__)
         parameters = [
-            p for p in init_signature.parameters.values()
+            p
+            for p in init_signature.parameters.values()
             if p.name != "self" and p.kind != p.VAR_KEYWORD
         ]
         params = {}
@@ -375,27 +377,28 @@ class DeepDetector(Detector, ABC):
         ``emb`` is a tuple of torch.Tensor.
     """
 
-    def __init__(self,
-                 hid_dim=64,
-                 num_layers=2,
-                 dropout=0.0,
-                 weight_decay=0.0,
-                 act=torch.nn.functional.relu,
-                 backbone=GIN,
-                 contamination=0.1,
-                 lr=4e-3,
-                 epoch=100,
-                 gpu=-1,
-                 batch_size=0,
-                 num_neigh=-1,
-                 verbose=0,
-                 gan=False,
-                 save_emb=False,
-                 compile_model=False,
-                 **kwargs):
+    def __init__(
+        self,
+        hid_dim=64,
+        num_layers=2,
+        dropout=0.0,
+        weight_decay=0.0,
+        act=torch.nn.functional.relu,
+        backbone=GIN,
+        contamination=0.1,
+        lr=4e-3,
+        epoch=100,
+        gpu=-1,
+        batch_size=0,
+        num_neigh=-1,
+        verbose=0,
+        gan=False,
+        save_emb=False,
+        compile_model=False,
+        **kwargs
+    ):
 
-        super(DeepDetector, self).__init__(contamination=contamination,
-                                           verbose=verbose)
+        super(DeepDetector, self).__init__(contamination=contamination, verbose=verbose)
 
         # model param
         self.in_dim = None
@@ -418,9 +421,11 @@ class DeepDetector(Detector, ABC):
             self.num_neigh = [num_neigh] * self.num_layers
         elif type(num_neigh) is list:
             if len(num_neigh) != self.num_layers:
-                raise ValueError("Number of neighbors should have the "
-                                 "same length as hidden layers dimension or"
-                                 "the number of layers.")
+                raise ValueError(
+                    "Number of neighbors should have the "
+                    "same length as hidden layers dimension or"
+                    "the number of layers."
+                )
             self.num_neigh = num_neigh
         else:
             raise ValueError("Number of neighbors must be int or list of int")
@@ -438,17 +443,15 @@ class DeepDetector(Detector, ABC):
         self.num_nodes, self.in_dim = data.x.shape
         if self.batch_size == 0:
             self.batch_size = data.x.shape[0]
-        loader = NeighborLoader(data,
-                                self.num_neigh,
-                                batch_size=self.batch_size)
+        loader = NeighborLoader(data, self.num_neigh, batch_size=self.batch_size)
 
         self.model = self.init_model(**self.kwargs)
         if self.compile_model:
             self.model = compile(self.model)
         if not self.gan:
-            optimizer = torch.optim.Adam(self.model.parameters(),
-                                         lr=self.lr,
-                                         weight_decay=self.weight_decay)
+            optimizer = torch.optim.Adam(
+                self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay
+            )
         else:
             self.opt_in = torch.optim.Adam(
                 self.model.inner.parameters(),
@@ -463,6 +466,7 @@ class DeepDetector(Detector, ABC):
 
         self.model.train()
         self.decision_score_ = torch.zeros(data.x.shape[0])
+        time_st = time.time()
         for epoch in range(self.epoch):
             start_time = time.time()
             epoch_loss = 0
@@ -476,16 +480,16 @@ class DeepDetector(Detector, ABC):
                 epoch_loss += loss.item() * batch_size
                 if self.save_emb:
                     if type(self.emb) is tuple:
-                        self.emb[0][node_idx[:batch_size]] = self.model.emb[
-                            0][:batch_size].cpu()
-                        self.emb[1][node_idx[:batch_size]] = self.model.emb[
-                            1][:batch_size].cpu()
+                        self.emb[0][node_idx[:batch_size]] = self.model.emb[0][
+                            :batch_size
+                        ].cpu()
+                        self.emb[1][node_idx[:batch_size]] = self.model.emb[1][
+                            :batch_size
+                        ].cpu()
                     else:
-                        self.emb[
-                            node_idx[:
-                                     batch_size]] = self.model.emb[:
-                                                                   batch_size].cpu(
-                                                                   )
+                        self.emb[node_idx[:batch_size]] = self.model.emb[
+                            :batch_size
+                        ].cpu()
                 self.decision_score_[node_idx[:batch_size]] = score
 
                 optimizer.zero_grad()
@@ -507,14 +511,12 @@ class DeepDetector(Detector, ABC):
             )
 
         self._process_decision_score()
-        return self
+        return (time.time() - time_st) / (epoch + 1) * 10
 
     def decision_function(self, data, label=None):
 
         self.process_graph(data)
-        loader = NeighborLoader(data,
-                                self.num_neigh,
-                                batch_size=self.batch_size)
+        loader = NeighborLoader(data, self.num_neigh, batch_size=self.batch_size)
 
         self.model.eval()
         outlier_score = torch.zeros(data.x.shape[0])
@@ -534,16 +536,14 @@ class DeepDetector(Detector, ABC):
             node_idx = sampled_data.n_id
             if self.save_emb:
                 if type(self.hid_dim) is tuple:
-                    self.emb[0][node_idx[:batch_size]] = self.model.emb[
-                        0][:batch_size].cpu()
-                    self.emb[1][node_idx[:batch_size]] = self.model.emb[
-                        1][:batch_size].cpu()
+                    self.emb[0][node_idx[:batch_size]] = self.model.emb[0][
+                        :batch_size
+                    ].cpu()
+                    self.emb[1][node_idx[:batch_size]] = self.model.emb[1][
+                        :batch_size
+                    ].cpu()
                 else:
-                    self.emb[
-                        node_idx[:
-                                 batch_size]] = self.model.emb[:
-                                                               batch_size].cpu(
-                                                               )
+                    self.emb[node_idx[:batch_size]] = self.model.emb[:batch_size].cpu()
 
             test_loss = loss.item() * batch_size
             outlier_score[node_idx[:batch_size]] = score
@@ -644,7 +644,7 @@ class DeepDetector(Detector, ABC):
         )
         if return_emb:
             if type(output) is tuple:
-                output += (self.emb, )
+                output += (self.emb,)
             else:
                 output = (output, self.emb)
 

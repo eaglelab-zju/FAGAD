@@ -19,7 +19,8 @@ from .utils import *
 
 # Set argument
 parser = argparse.ArgumentParser(
-    description="Truncated Affinity Maximization for Graph Anomaly Detection")
+    description="Truncated Affinity Maximization for Graph Anomaly Detection"
+)
 parser.add_argument("--dataset", type=str, default="Amazon")
 parser.add_argument("--gpu", type=str, default="6", help="GPU id")
 parser.add_argument("--lr", type=float, default=1e-5)
@@ -29,8 +30,7 @@ parser.add_argument("--embedding_dim", type=int, default=128)
 parser.add_argument("--num_epoch", type=int)
 parser.add_argument("--drop_prob", type=float, default=0.0)
 parser.add_argument("--subgraph_size", type=int, default=15)
-parser.add_argument("--readout", type=str,
-                    default="avg")  # max min avg  weighted_sum
+parser.add_argument("--readout", type=str, default="avg")  # max min avg  weighted_sum
 parser.add_argument("--margin", type=int, default=2)
 parser.add_argument("--negsamp_ratio", type=int, default=2)
 parser.add_argument("--cutting", type=int, default=3)  # 3 5 8 10
@@ -101,17 +101,13 @@ elif data_name == "custom":
     graph = load_custom_data(data_path=data_path)
 else:
     graph = load_data(data_name)
-    graph = inject_contextual_anomalies(graph=graph,
-                                        k=K,
-                                        p=P,
-                                        q=Q_MAP[data_name],
-                                        seed=4096)
-    graph = inject_structural_anomalies(graph=graph,
-                                        p=P,
-                                        q=Q_MAP[data_name],
-                                        seed=4096)
-    print(min(graph.ndata["label"]), max(graph.ndata["label"]),
-          graph.ndata["label"].shape)
+    graph = inject_contextual_anomalies(
+        graph=graph, k=K, p=P, q=Q_MAP[data_name], seed=4096
+    )
+    graph = inject_structural_anomalies(graph=graph, p=P, q=Q_MAP[data_name], seed=4096)
+    print(
+        min(graph.ndata["label"]), max(graph.ndata["label"]), graph.ndata["label"].shape
+    )
     if data_name not in ["BlogCatalog", "Flickr"]:
         from sklearn.preprocessing import LabelEncoder, MinMaxScaler
 
@@ -226,6 +222,7 @@ seed_list = [random.randint(0, 99999) for i in range(runs)]
 
 aucs = []
 tab_printer(args.__dict__)
+et = []
 for run in range(runs):
     index = 0
     message_mean_list = []
@@ -235,11 +232,12 @@ for run in range(runs):
     optimiser_list = []
     model_list = []
     for i in range(args.cutting * args.N_tree):
-        model = Model(ft_size, args.embedding_dim, "prelu", args.negsamp_ratio,
-                      args.readout)
-        optimiser = torch.optim.Adam(model.parameters(),
-                                     lr=args.lr,
-                                     weight_decay=args.weight_decay)
+        model = Model(
+            ft_size, args.embedding_dim, "prelu", args.negsamp_ratio, args.readout
+        )
+        optimiser = torch.optim.Adam(
+            model.parameters(), lr=args.lr, weight_decay=args.weight_decay
+        )
         if torch.cuda.is_available():
             model = model.cuda()
             optimiser_list.append(optimiser)
@@ -254,6 +252,7 @@ for run in range(runs):
         raw_adj = raw_adj.cuda()
         all_cut_adj = all_cut_adj.cuda()
 
+    time_st = time.time()
     for n_cut in range(args.cutting):
         print("n_cut.{}".format(n_cut))
         feat_list = []
@@ -269,11 +268,9 @@ for run in range(runs):
             for epoch in range(args.num_epoch):
                 all_idx = list(range(nb_nodes))
 
-                node_emb, feat1, feat2 = model_list[index].forward(
-                    features, adj_norm)
+                node_emb, feat1, feat2 = model_list[index].forward(features, adj_norm)
                 # maximize the message flow
-                loss, message_sum1 = max_message(node_emb[0, :, :],
-                                                 raw_adj[0, :, :])
+                loss, message_sum1 = max_message(node_emb[0, :, :], raw_adj[0, :, :])
 
                 message_sum = inference(node_emb[0, :, :], raw_adj[0, :, :])
                 reg_loss = reg_edge(feat1[0, :, :], raw_adj[0, :, :])
@@ -330,10 +327,28 @@ for run in range(runs):
         #                              sample_weight=None)
         # print("AP:", AP)
         print("{} AUC:{:.4f}".format(args.dataset, auc))
+
+    et.append((time.time() - time_st) / (epoch + 1) * 10)
     aucs.append(auc)
 
     end = time.time()
     print(end - start)
+
+
+import numpy as np
+from the_utils import save_to_csv_files
+
+elapsed_time = np.array(et)
+save_to_csv_files(
+    {
+        "time": f"{elapsed_time.mean():.2f}±{elapsed_time.std():.2f}",
+    },
+    "time.csv",
+    insert_info={
+        "model": "TAM",
+        "dataet": data_name,
+    },
+)
 
 from the_utils import save_to_csv_files
 
@@ -341,8 +356,7 @@ save_path = "baselines.csv"
 print(f"write result to {save_path}")
 save_to_csv_files(
     results={
-        "AUC":
-        f"{np.array(aucs).mean()*100:.2f}±{np.array(aucs).std()*100:.2f}",
+        "AUC": f"{np.array(aucs).mean()*100:.2f}±{np.array(aucs).std()*100:.2f}",
     },
     insert_info={
         "dataset": args.dataset,

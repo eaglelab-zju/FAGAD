@@ -1,4 +1,5 @@
 import math
+import time
 import warnings
 from copy import deepcopy
 
@@ -88,9 +89,10 @@ class CONAD(nn.Module):
 
         if batch_size == 0:
             print("full graph training!!!")
+            g_orig = g_orig.to(device)
+            g_aug = g_aug.to(device)
+            time_st = time.time()
             for epoch in range(num_epoch):
-                g_orig = g_orig.to(device)
-                g_aug = g_aug.to(device)
 
                 loss_epoch, contrast_loss, struct_loss, feat_loss = train_step(
                     self.model, optimizer, g_orig, g_aug, alpha=alpha, eta=eta
@@ -102,8 +104,10 @@ class CONAD(nn.Module):
                     f",struct_loss={struct_loss.item()}",
                     f",feat_loss={feat_loss.item()}",
                 )
+
         else:
             print("batch graph training!!!")
+            time_st = time.time()
             for epoch in range(num_epoch):
                 loss = train_step_batch(
                     self.model, optimizer, g_orig, g_aug, alpha, eta, batch_size, device
@@ -114,6 +118,7 @@ class CONAD(nn.Module):
                 if early_stop.isEarlyStopping():
                     print(f"Early stopping in round {epoch}")
                     break
+        return (time.time() - time_st) / (epoch + 1) * 10
 
     def predict(
         self,
@@ -190,6 +195,7 @@ class CONAD_Base(nn.Module):
         # predictor network
         self.predictor = MLPHead(projection_size, mlp_hidden_size, projection_size)
 
+        # NOTE: FAGCN is the Frequency Self-Adaptation Graph Neural Network
         if encoder_name == "FAGCN":
             self.attr_decoder = FAGCN(projection_size, in_feats, k)
         elif encoder_name == "ChebNet":
@@ -590,6 +596,7 @@ if __name__ == "__main__":
             print_params["final_score"] = []
             print_params["a_score"] = []
             print_params["s_score"] = []
+            et = []
             for run_id in range(runs):
                 seed = seed_list[run_id]
                 set_seed(seed)
@@ -674,7 +681,8 @@ if __name__ == "__main__":
 
                 model = CONAD(**model_params)
                 # print(model)
-                model.fit(graph, **fit_params)
+                elapsed_time = model.fit(graph, **fit_params)
+                et.append(elapsed_time)
                 result = model.predict(
                     graph,
                     alpha=fit_params["alpha"],
@@ -686,6 +694,18 @@ if __name__ == "__main__":
                 print_params["final_score"].append(final_score)
                 print_params["a_score"].append(a_score)
                 print_params["s_score"].append(s_score)
+
+            elapsed_time = np.array(et)
+            save_to_csv_files(
+                {
+                    "time": f"{elapsed_time.mean():.2f}±{elapsed_time.std():.2f}",
+                },
+                "time.csv",
+                insert_info={
+                    "model": "FAGAD",
+                    "dataet": data_name,
+                },
+            )
 
             print_params["final_score"] = (
                 f"{np.array(print_params['final_score']).mean()*100:.2f}±{np.array(print_params['final_score']).std()*100:.2f}"

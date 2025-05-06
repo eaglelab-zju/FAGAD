@@ -103,9 +103,9 @@ class CONAD(nn.Module):
         elif contrast_type == "triplet":
             criterion = TripletContrastiveLoss(margin=margin)
 
-        optimizer = torch.optim.Adam(self.model.parameters(),
-                                     lr=lr,
-                                     weight_decay=weight_decay)
+        optimizer = torch.optim.Adam(
+            self.model.parameters(), lr=lr, weight_decay=weight_decay
+        )
 
         graph = graph.remove_self_loop()
 
@@ -122,6 +122,9 @@ class CONAD(nn.Module):
 
         early_stop = EarlyStopping(early_stopping_rounds=10, patience=20)
 
+        import time
+
+        time_st = time.time()
         if batch_size == 0:
             print("full graph training!!!")
             for epoch in range(num_epoch):
@@ -162,13 +165,13 @@ class CONAD(nn.Module):
                     batch_size,
                     device,
                 )
-                print("Epoch:", "%04d" % (epoch), "train/loss=",
-                      "{:.5f}".format(loss))
+                print("Epoch:", "%04d" % (epoch), "train/loss=", "{:.5f}".format(loss))
 
                 early_stop(loss, self.model)
                 if early_stop.isEarlyStopping():
                     print(f"Early stopping in round {epoch}")
                     break
+        return (time.time() - time_st) / (epoch + 1) * 10
 
     def predict(
         self,
@@ -212,8 +215,9 @@ class CONAD(nn.Module):
         else:
             graph = graph.remove_self_loop().add_self_loop()
             self.model.to(device)
-            predict_score = test_step_batch(self.model, graph, alpha,
-                                            batch_size, device)
+            predict_score = test_step_batch(
+                self.model, graph, alpha, batch_size, device
+            )
 
         return predict_score
 
@@ -295,8 +299,7 @@ class TripletContrastiveLoss(nn.Module):
         l = l.view(-1)
         adj = torch.diag(l == 0).float() @ adj @ torch.diag(l == 1).float()
         pairs = torch.nonzero(adj)
-        loss = self.criterion(orig[pairs[:, 0]], orig[pairs[:, 1]],
-                              aug[pairs[:, 1]])
+        loss = self.criterion(orig[pairs[:, 0]], orig[pairs[:, 1]], aug[pairs[:, 1]])
         return loss
 
 
@@ -318,12 +321,12 @@ class CONAD_Base(nn.Module):
     """
 
     def __init__(
-            self,
-            in_feats,
-            hid_feats=128,
-            out_feats=64,
-            num_heads=2,
-            activation=nn.LeakyReLU(),
+        self,
+        in_feats,
+        hid_feats=128,
+        out_feats=64,
+        num_heads=2,
+        activation=nn.LeakyReLU(),
     ):
         super(CONAD_Base, self).__init__()
         self.in_feats = in_feats
@@ -331,18 +334,18 @@ class CONAD_Base(nn.Module):
         self.out_feats = out_feats
         self.num_heads = num_heads
 
-        self.shared_encoder = nn.ModuleList([
-            GATConv(in_feats, hid_feats, num_heads, activation=activation),
-            GATConv(hid_feats * num_heads,
-                    out_feats,
-                    num_heads,
-                    activation=activation),
-        ])
+        self.shared_encoder = nn.ModuleList(
+            [
+                GATConv(in_feats, hid_feats, num_heads, activation=activation),
+                GATConv(
+                    hid_feats * num_heads, out_feats, num_heads, activation=activation
+                ),
+            ]
+        )
 
-        self.attr_decoder = GATConv(out_feats,
-                                    in_feats,
-                                    num_heads,
-                                    activation=activation)
+        self.attr_decoder = GATConv(
+            out_feats, in_feats, num_heads, activation=activation
+        )
 
         self.struct_decoder = lambda h: h @ h.T
         # self.struct_decoder = lambda h: torch.sigmoid(h @ h.T)
@@ -528,27 +531,25 @@ class KnowledgeModel(dgl.BaseTransform):
 
             # high-degree
             num_hd = torch.sum(prob < self.rate / 4)
-            edge_mask = torch.rand(num_hd,
-                                   num_nodes) < self.num_added_edge / num_nodes
+            edge_mask = torch.rand(num_hd, num_nodes) < self.num_added_edge / num_nodes
             adj[prob <= self.rate / 4, :] = edge_mask.float()
             adj[:, prob <= self.rate / 4] = edge_mask.float().T
 
             # outlying
-            ol_mask = torch.logical_and(self.rate / 4 <= prob, prob
-                                        < self.rate / 2)
+            ol_mask = torch.logical_and(self.rate / 4 <= prob, prob < self.rate / 2)
             adj[ol_mask, :] = 0
             adj[:, ol_mask] = 0
 
             # deviated
-            dv_mask = torch.logical_and(self.rate / 2 <= prob, prob
-                                        < self.rate * 3 / 4)
-            feat_c = feat[torch.randperm(num_nodes)[:self.surround]]
+            dv_mask = torch.logical_and(self.rate / 2 <= prob, prob < self.rate * 3 / 4)
+            feat_c = feat[torch.randperm(num_nodes)[: self.surround]]
             ds = torch.cdist(feat[dv_mask], feat_c)
             feat[dv_mask] = feat_c[torch.argmax(ds, 1)]
 
             # disproportionate
-            mul_mask = torch.logical_and(self.rate * 3 / 4 <= prob, prob
-                                         < self.rate * 7 / 8)
+            mul_mask = torch.logical_and(
+                self.rate * 3 / 4 <= prob, prob < self.rate * 7 / 8
+            )
             div_mask = self.rate * 7 / 8 <= prob
             feat[mul_mask] *= self.scale_factor
             feat[div_mask] /= self.scale_factor
