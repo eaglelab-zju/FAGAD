@@ -1,12 +1,12 @@
 # FAGAD
 
-An implementation of FAGAD with the code of 15 baseline models in [./src/dgld/models](./src/dgld/models).
+An implementation of FAGAD: [Frequency Self-Adaptation Graph Neural Network for Unsupervised Graph Anomaly Detection](https://www.sciencedirect.com/science/article/pii/S0893608025004927).
 
 ## Installation
 
 See [requirements-dev.txt](./requirements-dev.txt) and [requirements.txt](./requirements.txt) for pip requirements.
 
-Install scripts:
+Installation scripts:
 ```bash
 bash .ci/install-dev.sh
 bash .ci/install.sh
@@ -37,4 +37,16 @@ python -u -m dgld.models.FAGAD.models --dataset Enron --gpu 5 --model_init ident
 python -u -m dgld.models.FAGAD.models --dataset BlogCatalog --gpu 5 --model_init zero --lr 0.001 --hid_feats 512 --mlp_hidden_dic 1024  --projection_dic 1024 --struct_dec_act sigmoid --k_dic 5 --alpha 0.99 --eta 0.1 --num_epoch 25 --weight_decay 0 --dropout_dic 0.1 --runs 3
 
 python -u -m dgld.models.FAGAD.models --dataset Flickr --gpu 4 --model_init zero --lr 0.001 --hid_feats 512  --mlp_hidden_dic 768  --projection_dic 512  --struct_dec_act relu --k_dic 2 --alpha 0.99 --eta 0.5 --num_epoch 15 --dropout_dic 0.2 --weight_decay 0 --runs 3
+```
+
+## Citation
+```bibtex
+@article{gu2025frequency,
+  title={Frequency Self-Adaptation Graph Neural Network for Unsupervised Graph Anomaly Detection},
+  author={Gu, Ming and Yang, Gaoming and Zheng, Zhuonan and Liu, Meihan and Wang, Haishuai and Chen, Jiawei and Zhou, Sheng and Bu, Jiajun},
+  journal={Neural Networks},
+  pages={107612},
+  year={2025},
+  publisher={Elsevier}
+}
 ```
